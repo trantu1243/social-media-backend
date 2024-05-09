@@ -10,7 +10,7 @@ impl UserRespository {
         let cloned_username = new_user.username.clone();
         let clone_password = new_user.password.clone();
 
-        let params = ScryptParams::new(15, 8, 1).unwrap();
+        let params = ScryptParams::new(8, 4, 1).unwrap();
         let hasded_password = scrypt_simple(&clone_password, &params).unwrap();
 
         let user = NewUser{

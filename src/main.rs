@@ -9,9 +9,10 @@ mod respositories {
 }
 
 use models::{Login, NewUser};
-use rocket::{http::Status, response::status::Custom, serde::json::{Json, Value}};
+use rocket::{http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
 use respositories::users::UserRespository;
+use rocket_cors::AllowedOrigins;
 
 #[database("social_media")]
 struct DbConn(diesel::PgConnection);
@@ -49,6 +50,18 @@ fn unprocessable_entity() -> Value {
 
 #[launch]
 fn rocket() -> _ {
+    let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:3000"]);
+
+    // You can also deserialize this
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        allowed_methods: vec![Method::Get, Method::Post, Method::Put, Method::Delete, Method::Patch].into_iter().map(From::from).collect(),
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors()
+    .expect("CORS fairing cannot be created");
+
     rocket::build()
     .mount("/", routes![
         sign_in,
@@ -59,4 +72,5 @@ fn rocket() -> _ {
         unprocessable_entity
     ])
     .attach(DbConn::fairing())
+    .attach(cors)
 }
