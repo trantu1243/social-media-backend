@@ -17,18 +17,6 @@ pub struct User {
     pub shareid: Option<Vec<Option<i32>>>,
 }
 
-#[derive(serde::Serialize, Queryable)]
-pub struct Post {
-    pub id: i32,
-    pub userid: Option<i32>,
-    pub title: String,
-    pub content: String,
-    pub imageurl: Option<String>,
-    pub likeid: Option<Vec<Option<i32>>>,
-    pub commentid: Option<Vec<Option<i32>>>,
-    pub shareid: Option<Vec<Option<i32>>>,
-}
-
 #[derive(serde::Deserialize, Insertable)]
 #[diesel(table_name = users)]
 pub struct NewUser {
@@ -41,4 +29,31 @@ pub struct NewUser {
 pub struct Login {
     pub username: String,
     pub password: String
+}
+
+#[derive(serde::Serialize, Queryable)]
+pub struct SafeUser {
+    id: i32,
+    username: String,
+    name: String,
+    avatar: Option<String>,
+    background: Option<String>,
+    postid: Option<Vec<Option<i32>>>,
+    followerid: Option<Vec<Option<i32>>>,
+    followingid: Option<Vec<Option<i32>>>,
+    likeid: Option<Vec<Option<i32>>>,
+    commentid: Option<Vec<Option<i32>>>,
+    shareid: Option<Vec<Option<i32>>>,
+}
+
+#[derive(serde::Serialize, Queryable)]
+pub struct Post {
+    pub id: i32,
+    pub userid: Option<i32>,
+    pub title: String,
+    pub content: String,
+    pub imageurl: Option<String>,
+    pub likeid: Option<Vec<Option<i32>>>,
+    pub commentid: Option<Vec<Option<i32>>>,
+    pub shareid: Option<Vec<Option<i32>>>,
 }

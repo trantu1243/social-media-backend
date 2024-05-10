@@ -3,7 +3,7 @@ pub mod schema;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use dotenvy::dotenv;
+use dotenv::dotenv;
 use std::env;
 
 pub fn establish_connection() -> PgConnection {

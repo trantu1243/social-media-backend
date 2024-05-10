@@ -1,9 +1,11 @@
 #[macro_use] extern crate rocket;
 extern crate diesel;
 #[macro_use] extern crate rocket_sync_db_pools;
+extern crate dotenv;
 
 mod models;
 mod schema;
+mod jwt;
 mod respositories {
     pub mod users;
 }
@@ -51,8 +53,6 @@ fn unprocessable_entity() -> Value {
 #[launch]
 fn rocket() -> _ {
     let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:3000"]);
-
-    // You can also deserialize this
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
         allowed_methods: vec![Method::Get, Method::Post, Method::Put, Method::Delete, Method::Patch].into_iter().map(From::from).collect(),
@@ -61,7 +61,7 @@ fn rocket() -> _ {
     }
     .to_cors()
     .expect("CORS fairing cannot be created");
-
+    
     rocket::build()
     .mount("/", routes![
         sign_in,
