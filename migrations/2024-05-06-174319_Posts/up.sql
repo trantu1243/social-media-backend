@@ -1,13 +1,16 @@
 -- Your SQL goes here
-CREATE TABLE Posts (
-    id INTEGER PRIMARY KEY,
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
     userId INTEGER REFERENCES Users(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    imageUrl VARCHAR(255),
-    likeId INTEGER[],
+    name VARCHAR(100),
+    avatar_user TEXT,
+    content TEXT,
+    post_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    interact_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    image TEXT,
+    likeId INTEGER[], 
     commentId INTEGER[],
     shareId INTEGER[]
 );
 
-ALTER SEQUENCE users_id_seq RESTART WITH 1000000;
+ALTER SEQUENCE posts_id_seq RESTART WITH 1000000;

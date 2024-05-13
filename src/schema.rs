@@ -1,14 +1,45 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    comments (id) {
+        id -> Int4,
+        userid -> Nullable<Int4>,
+        postid -> Nullable<Int4>,
+        #[max_length = 100]
+        name -> Nullable<Varchar>,
+        avatar_user -> Nullable<Text>,
+        content -> Nullable<Text>,
+        likeid -> Nullable<Array<Nullable<Int4>>>,
+        commentid -> Nullable<Array<Nullable<Int4>>>,
+        comment_date -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    notifications (id) {
+        id -> Int4,
+        userid -> Nullable<Int4>,
+        postid -> Nullable<Int4>,
+        #[max_length = 100]
+        name -> Nullable<Varchar>,
+        content -> Nullable<Text>,
+        #[max_length = 255]
+        avatar_image_url -> Nullable<Varchar>,
+        notification_date -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     posts (id) {
         id -> Int4,
         userid -> Nullable<Int4>,
-        #[max_length = 255]
-        title -> Varchar,
-        content -> Text,
-        #[max_length = 255]
-        imageurl -> Nullable<Varchar>,
+        #[max_length = 100]
+        name -> Nullable<Varchar>,
+        avatar_user -> Nullable<Text>,
+        content -> Nullable<Text>,
+        post_date -> Nullable<Timestamp>,
+        interact_date -> Nullable<Timestamp>,
+        image -> Nullable<Text>,
         likeid -> Nullable<Array<Nullable<Int4>>>,
         commentid -> Nullable<Array<Nullable<Int4>>>,
         shareid -> Nullable<Array<Nullable<Int4>>>,
@@ -24,22 +55,28 @@ diesel::table! {
         password -> Varchar,
         #[max_length = 100]
         name -> Varchar,
-        #[max_length = 255]
-        avatar -> Nullable<Varchar>,
-        #[max_length = 255]
-        background -> Nullable<Varchar>,
+        avatar -> Nullable<Text>,
+        background -> Nullable<Text>,
         postid -> Nullable<Array<Nullable<Int4>>>,
         followerid -> Nullable<Array<Nullable<Int4>>>,
         followingid -> Nullable<Array<Nullable<Int4>>>,
         likeid -> Nullable<Array<Nullable<Int4>>>,
         commentid -> Nullable<Array<Nullable<Int4>>>,
         shareid -> Nullable<Array<Nullable<Int4>>>,
+        notifications -> Nullable<Array<Nullable<Int4>>>,
+        checknotification -> Nullable<Bool>,
     }
 }
 
+diesel::joinable!(comments -> posts (postid));
+diesel::joinable!(comments -> users (userid));
+diesel::joinable!(notifications -> posts (postid));
+diesel::joinable!(notifications -> users (userid));
 diesel::joinable!(posts -> users (userid));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    comments,
+    notifications,
     posts,
     users,
 );

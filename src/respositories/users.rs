@@ -40,6 +40,8 @@ impl UserRespository {
             users::likeid,
             users::commentid,
             users::shareid,
+            users::notifications,
+            users::checknotification
         )).filter(users::username.eq(cloned_username))
         .first::<SafeUser>(c);
         result
@@ -68,6 +70,8 @@ impl UserRespository {
                             users::likeid,
                             users::commentid,
                             users::shareid,
+                            users::notifications,
+                            users::checknotification
                         ))
                         .find(id)
                         .first::<SafeUser>(c)?;
