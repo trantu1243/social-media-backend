@@ -13,7 +13,7 @@ pub struct LoginRes {
 pub struct UserRespository;
 
 impl UserRespository {
-    pub fn create_user(c: &mut PgConnection, new_user: NewUser) -> QueryResult<SafeUser> {
+    pub fn create_user(c: &mut PgConnection, new_user: NewUser) -> QueryResult<LoginRes> {
         let cloned_username = new_user.username.clone();
         let clone_password = new_user.password.clone();
 
@@ -28,23 +28,35 @@ impl UserRespository {
         diesel::insert_into(users::table)
         .values(user)
         .execute(c)?;
-        let result = users::table.select((
-            users::id,
-            users::username,
-            users::name,
-            users::avatar,
-            users::background,
-            users::postid,
-            users::followerid,
-            users::followingid,
-            users::likeid,
-            users::commentid,
-            users::shareid,
-            users::notifications,
-            users::checknotification
-        )).filter(users::username.eq(cloned_username))
-        .first::<SafeUser>(c);
-        result
+        
+        let text = new_user.username.clone();
+        match JWTtoken::create_jwt(text) {
+            Ok(token) => {
+                let safe_user = users::table.select((
+                    users::id,
+                    users::username,
+                    users::name,
+                    users::avatar,
+                    users::background,
+                    users::postid,
+                    users::followerid,
+                    users::followingid,
+                    users::likeid,
+                    users::commentid,
+                    users::shareid,
+                    users::notifications,
+                    users::checknotification
+                )).filter(users::username.eq(cloned_username))
+                .first::<SafeUser>(c)?;
+
+                let response = LoginRes{
+                    user: safe_user,
+                    token: "Bearer ".to_string() + &token
+                };
+                Ok(response)
+            },
+            Err(_) =>  Err(diesel::NotFound),
+        }
     }
 
     pub fn handle_login(c: &mut PgConnection, login: Login) -> QueryResult<LoginRes> {
