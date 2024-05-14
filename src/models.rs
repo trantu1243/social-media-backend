@@ -1,4 +1,4 @@
-use diesel::{prelude::*, sql_types::Bool};
+use diesel::prelude::*;
 use super::schema::users;
 
 #[derive(serde::Serialize, Queryable)]

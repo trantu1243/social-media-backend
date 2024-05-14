@@ -6,6 +6,7 @@ extern crate dotenv;
 mod models;
 mod schema;
 mod jwt;
+mod authorization;
 mod respositories {
     pub mod users;
 }
@@ -15,6 +16,7 @@ use rocket::{http::{Method, Status}, response::status::Custom, serde::json::{Jso
 use serde_json::json;
 use respositories::users::UserRespository;
 use rocket_cors::AllowedOrigins;
+use authorization::BearerToken;
 
 #[database("social_media")]
 struct DbConn(diesel::PgConnection);
@@ -38,6 +40,16 @@ async fn register(db: DbConn, new_user: Json<NewUser>) -> Result<Value, Custom<V
         .map_err(|e| Custom(Status::InternalServerError, json!(e.to_string())))
     })
     .await
+}
+
+#[get("/auth")]
+async fn authorize(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let result = BearerToken::get_user(&_auth, c);
+        result
+        .map(|user| json!(user))
+        .map_err(|e| Custom(Status::InternalServerError, json!(e.to_string())))
+    }).await
 }
 
 #[catch(404)]
@@ -65,8 +77,9 @@ fn rocket() -> _ {
     rocket::build()
     .mount("/", routes![
         sign_in,
-        register
-        ])
+        register,
+        authorize
+    ])
     .register("/", catchers![
         not_found,
         unprocessable_entity
