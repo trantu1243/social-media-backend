@@ -7,8 +7,10 @@ pub struct User {
     pub username: String,
     pub password: String,
     pub name: String,
+    pub about: Option<String>,
     pub avatar: Option<String>,
     pub background: Option<String>,
+    pub photo: Option<Vec<Option<String>>>,
     pub post_id: Option<Vec<Option<i32>>>,
     pub follower_id: Option<Vec<Option<i32>>>,
     pub following_id: Option<Vec<Option<i32>>>,
@@ -16,7 +18,8 @@ pub struct User {
     pub comment_id: Option<Vec<Option<i32>>>,
     pub share_id: Option<Vec<Option<i32>>>,
     pub notifications: Option<Vec<Option<i32>>>,
-    pub check_notification: Option<bool>,
+    pub checknotification: Option<bool>,
+    pub blocklist: Option<Vec<Option<i32>>>
 }
 
 #[derive(serde::Deserialize, Insertable)]
@@ -36,18 +39,14 @@ pub struct Login {
 #[derive(serde::Serialize, Queryable)]
 pub struct SafeUser {
     id: i32,
-    username: String,
     name: String,
+    about: Option<String>,
     avatar: Option<String>,
     background: Option<String>,
+    photo: Option<Vec<Option<String>>>,
     postid: Option<Vec<Option<i32>>>,
     followerid: Option<Vec<Option<i32>>>,
-    followingid: Option<Vec<Option<i32>>>,
-    likeid: Option<Vec<Option<i32>>>,
-    commentid: Option<Vec<Option<i32>>>,
-    shareid: Option<Vec<Option<i32>>>,
-    pub notifications: Option<Vec<Option<i32>>>,
-    pub check_notification: Option<bool>,
+    followingid: Option<Vec<Option<i32>>>
 }
 
 #[derive(serde::Serialize, Queryable)]

@@ -34,18 +34,14 @@ impl UserRespository {
             Ok(token) => {
                 let safe_user = users::table.select((
                     users::id,
-                    users::username,
                     users::name,
+                    users::about,
                     users::avatar,
                     users::background,
+                    users::photo,
                     users::postid,
                     users::followerid,
-                    users::followingid,
-                    users::likeid,
-                    users::commentid,
-                    users::shareid,
-                    users::notifications,
-                    users::checknotification
+                    users::followingid
                 )).filter(users::username.eq(cloned_username))
                 .first::<SafeUser>(c)?;
 
@@ -72,18 +68,14 @@ impl UserRespository {
                         let id = user.id.clone();
                         let safe_user = users::table.select((
                             users::id,
-                            users::username,
                             users::name,
+                            users::about,
                             users::avatar,
                             users::background,
+                            users::photo,
                             users::postid,
                             users::followerid,
-                            users::followingid,
-                            users::likeid,
-                            users::commentid,
-                            users::shareid,
-                            users::notifications,
-                            users::checknotification
+                            users::followingid
                         ))
                         .find(id)
                         .first::<SafeUser>(c)?;
@@ -95,6 +87,47 @@ impl UserRespository {
                     },
                     Err(_) =>  Err(diesel::NotFound),
                 }
+            },
+            Err(_) => Err(diesel::NotFound)
+        }
+    }
+
+    pub fn get_user_info(c: &mut PgConnection, id: i32) -> QueryResult<SafeUser> {
+        let safe_user = users::table.select((
+            users::id,
+            users::name,
+            users::about,
+            users::avatar,
+            users::background,
+            users::photo,
+            users::postid,
+            users::followerid,
+            users::followingid
+        ))
+        .find(id)
+        .first::<SafeUser>(c)?;
+    Ok(safe_user)
+    }
+
+    pub fn save_avatar(c: &mut PgConnection, id: String, url: String) -> QueryResult<String> {
+        let id_number: Result<i32, _> = id.parse();
+        match id_number {
+            Ok(num) => {
+                let result = diesel::update(users::table.find(num)).set(users::avatar.eq(url))
+                .execute(c)?;
+                Ok(result.to_string())
+            },
+            Err(_) => Err(diesel::NotFound)
+        }
+    }
+
+    pub fn save_background(c: &mut PgConnection, id: String, url: String) -> QueryResult<String> {
+        let id_number: Result<i32, _> = id.parse();
+        match id_number {
+            Ok(num) => {
+                let result = diesel::update(users::table.find(num)).set(users::background.eq(url))
+                .execute(c)?;
+                Ok(result.to_string())
             },
             Err(_) => Err(diesel::NotFound)
         }

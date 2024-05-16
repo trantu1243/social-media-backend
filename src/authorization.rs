@@ -59,18 +59,14 @@ impl BearerToken{
     pub fn get_user(&self, c: &mut PgConnection) -> QueryResult<SafeUser>{
         let safe_user = users::table.select((
                 users::id,
-                users::username,
                 users::name,
+                users::about,
                 users::avatar,
                 users::background,
+                users::photo,
                 users::postid,
                 users::followerid,
                 users::followingid,
-                users::likeid,
-                users::commentid,
-                users::shareid,
-                users::notifications,
-                users::checknotification
             )).filter(users::username.eq(self.username.clone()))
             .first::<SafeUser>(c)?;
         Ok(safe_user)

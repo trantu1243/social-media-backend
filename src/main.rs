@@ -10,13 +10,16 @@ mod authorization;
 mod respositories {
     pub mod users;
 }
+mod aws_s3;
 
 use models::{Login, NewUser};
-use rocket::{http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
+use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
 use respositories::users::UserRespository;
 use rocket_cors::AllowedOrigins;
 use authorization::BearerToken;
+use tokio::io::AsyncReadExt;
+use crate::aws_s3::AwsS3;
 
 #[database("social_media")]
 struct DbConn(diesel::PgConnection);
@@ -27,7 +30,7 @@ async fn sign_in(db: DbConn, user: Json<Login>) -> Result<Value, Custom<Value>> 
         let result = UserRespository::handle_login(c, user.into_inner());
         result
         .map(|user| json!(user))
-        .map_err(|e| Custom(Status::InternalServerError, json!(e.to_string())))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await
 }
 
@@ -37,7 +40,7 @@ async fn register(db: DbConn, new_user: Json<NewUser>) -> Result<Value, Custom<V
         let result = UserRespository::create_user(c, new_user.into_inner());
         result
         .map(|user| json!(user))
-        .map_err(|e| Custom(Status::InternalServerError, json!(e.to_string())))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     })
     .await
 }
@@ -48,9 +51,75 @@ async fn authorize(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value
         let result = BearerToken::get_user(&_auth, c);
         result
         .map(|user| json!(user))
-        .map_err(|e| Custom(Status::InternalServerError, json!(e.to_string())))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await
 }
+
+#[get("/user/<id>")]
+async fn user_from_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>>{
+    db.run(move |c|{
+        let result = UserRespository::get_user_info(c, id);
+        result
+        .map(|user| json!(user))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
+#[derive(FromForm)]
+struct FileUploadForm<'a> {
+    file: TempFile<'a>,
+    r#type: &'a str,
+    id: &'a str,
+}
+
+#[post("/upload/avatar", data = "<data>")]
+async fn upload_avatar(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
+    let file = &data.file;
+    let extension =  data.r#type;
+    let id = data.id.to_string();
+    let mut bytes = vec![];
+    if let Ok(mut file) = file.open().await {
+        let _ = file.read_to_end(&mut bytes).await;
+    }
+    let res = AwsS3::upload_s3(bytes, extension).await;
+
+    match res {
+        Ok(url) => {
+            db.run(move |c| {
+                UserRespository::save_avatar(c, id, url)
+                    .map(|user| json!(user))
+                    .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+            })
+            .await
+        },
+        Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload to S3"}))),
+    }
+}
+
+#[post("/upload/background", data = "<data>")]
+async fn upload_background(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
+    let file = &data.file;
+    let extension =  data.r#type;
+    let id = data.id.to_string();
+    let mut bytes = vec![];
+    if let Ok(mut file) = file.open().await {
+        let _ = file.read_to_end(&mut bytes).await;
+    }
+    let res = AwsS3::upload_s3(bytes, extension).await;
+
+    match res {
+        Ok(url) => {
+            db.run(move |c| {
+                UserRespository::save_background(c, id, url)
+                    .map(|user| json!(user))
+                    .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+            })
+            .await
+        },
+        Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload to S3"}))),
+    }
+}
+    
 
 #[catch(404)]
 fn not_found() -> Value {
@@ -78,7 +147,10 @@ fn rocket() -> _ {
     .mount("/", routes![
         sign_in,
         register,
-        authorize
+        authorize,
+        user_from_id,
+        upload_avatar,
+        upload_background
     ])
     .register("/", catchers![
         not_found,

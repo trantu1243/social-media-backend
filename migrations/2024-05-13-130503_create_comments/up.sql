@@ -5,8 +5,8 @@ CREATE TABLE comments (
     name VARCHAR(100),
     avatar_user TEXT,
     content TEXT,
-    likeId INTEGER[], 
-    commentId INTEGER[],
+    likeId INTEGER[] DEFAULT ARRAY[]::INTEGER[], 
+    commentId INTEGER[] DEFAULT ARRAY[]::INTEGER[],
     comment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

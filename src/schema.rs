@@ -43,6 +43,7 @@ diesel::table! {
         likeid -> Nullable<Array<Nullable<Int4>>>,
         commentid -> Nullable<Array<Nullable<Int4>>>,
         shareid -> Nullable<Array<Nullable<Int4>>>,
+        secret -> Nullable<Bool>,
     }
 }
 
@@ -55,8 +56,10 @@ diesel::table! {
         password -> Varchar,
         #[max_length = 100]
         name -> Varchar,
+        about -> Nullable<Text>,
         avatar -> Nullable<Text>,
         background -> Nullable<Text>,
+        photo -> Nullable<Array<Nullable<Text>>>,
         postid -> Nullable<Array<Nullable<Int4>>>,
         followerid -> Nullable<Array<Nullable<Int4>>>,
         followingid -> Nullable<Array<Nullable<Int4>>>,
@@ -65,6 +68,7 @@ diesel::table! {
         shareid -> Nullable<Array<Nullable<Int4>>>,
         notifications -> Nullable<Array<Nullable<Int4>>>,
         checknotification -> Nullable<Bool>,
+        blocklist -> Nullable<Array<Nullable<Int4>>>,
     }
 }
 

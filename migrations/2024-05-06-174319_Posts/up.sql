@@ -7,10 +7,11 @@ CREATE TABLE posts (
     content TEXT,
     post_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     interact_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    image TEXT,
-    likeId INTEGER[], 
-    commentId INTEGER[],
-    shareId INTEGER[]
+    image TEXT DEFAULT ARRAY[]::TEXT[],
+    likeId INTEGER[] DEFAULT ARRAY[]::INTEGER[], 
+    commentId INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    shareId INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+    secret BOOLEAN DEFAULT false
 );
 
 ALTER SEQUENCE posts_id_seq RESTART WITH 1000000;
