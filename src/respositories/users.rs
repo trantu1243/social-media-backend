@@ -109,27 +109,15 @@ impl UserRespository {
     Ok(safe_user)
     }
 
-    pub fn save_avatar(c: &mut PgConnection, id: String, url: String) -> QueryResult<String> {
-        let id_number: Result<i32, _> = id.parse();
-        match id_number {
-            Ok(num) => {
-                let result = diesel::update(users::table.find(num)).set(users::avatar.eq(url))
-                .execute(c)?;
-                Ok(result.to_string())
-            },
-            Err(_) => Err(diesel::NotFound)
-        }
+    pub fn save_avatar(c: &mut PgConnection, id: i32, url: String) -> QueryResult<String> {     
+        let result = diesel::update(users::table.find(id)).set(users::avatar.eq(url))
+        .execute(c)?;
+        Ok(result.to_string())
     }
 
-    pub fn save_background(c: &mut PgConnection, id: String, url: String) -> QueryResult<String> {
-        let id_number: Result<i32, _> = id.parse();
-        match id_number {
-            Ok(num) => {
-                let result = diesel::update(users::table.find(num)).set(users::background.eq(url))
-                .execute(c)?;
-                Ok(result.to_string())
-            },
-            Err(_) => Err(diesel::NotFound)
-        }
+    pub fn save_background(c: &mut PgConnection, id: i32, url: String) -> QueryResult<String> {
+        let result = diesel::update(users::table.find(id)).set(users::background.eq(url))
+        .execute(c)?;
+        Ok(result.to_string())
     }
 }

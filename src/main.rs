@@ -9,20 +9,21 @@ mod jwt;
 mod authorization;
 mod respositories {
     pub mod users;
+    pub mod posts;
 }
 mod aws_s3;
 
 use models::{Login, NewUser};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
-use respositories::users::UserRespository;
+use respositories::{posts::PostUploadForm, users::UserRespository};
+use respositories::posts::PostResponsitory;
 use rocket_cors::AllowedOrigins;
 use authorization::BearerToken;
-use tokio::io::AsyncReadExt;
 use crate::aws_s3::AwsS3;
 
 #[database("social_media")]
-struct DbConn(diesel::PgConnection);
+pub struct DbConn(diesel::PgConnection);
 
 #[post("/login", format = "json", data = "<user>")]
 async fn sign_in(db: DbConn, user: Json<Login>) -> Result<Value, Custom<Value>> {
@@ -56,7 +57,7 @@ async fn authorize(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value
 }
 
 #[get("/user/<id>")]
-async fn user_from_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>>{
+async fn user_from_id(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>>{
     db.run(move |c|{
         let result = UserRespository::get_user_info(c, id);
         result
@@ -69,26 +70,22 @@ async fn user_from_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>>{
 struct FileUploadForm<'a> {
     file: TempFile<'a>,
     r#type: &'a str,
-    id: &'a str,
 }
 
 #[post("/upload/avatar", data = "<data>")]
 async fn upload_avatar(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
-    let file = &data.file;
-    let extension =  data.r#type;
-    let id = data.id.to_string();
-    let mut bytes = vec![];
-    if let Ok(mut file) = file.open().await {
-        let _ = file.read_to_end(&mut bytes).await;
-    }
-    let res = AwsS3::upload_s3(bytes, extension).await;
 
+    let res = AwsS3::handle_file_s3(&data.file, data.r#type).await;
     match res {
         Ok(url) => {
             db.run(move |c| {
-                UserRespository::save_avatar(c, id, url)
-                    .map(|user| json!(user))
-                    .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+                let user = BearerToken::get_user(&_auth, c);
+                match user {
+                    Ok(user) => UserRespository::save_avatar(c, user.id, url)
+                        .map(|user| json!(user))
+                        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()}))),
+                    Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload to S3"})))
+                }
             })
             .await
         },
@@ -98,28 +95,44 @@ async fn upload_avatar(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm
 
 #[post("/upload/background", data = "<data>")]
 async fn upload_background(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
-    let file = &data.file;
-    let extension =  data.r#type;
-    let id = data.id.to_string();
-    let mut bytes = vec![];
-    if let Ok(mut file) = file.open().await {
-        let _ = file.read_to_end(&mut bytes).await;
-    }
-    let res = AwsS3::upload_s3(bytes, extension).await;
 
+    let res = AwsS3::handle_file_s3(&data.file, data.r#type).await;
     match res {
         Ok(url) => {
             db.run(move |c| {
-                UserRespository::save_background(c, id, url)
-                    .map(|user| json!(user))
-                    .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+                let user = BearerToken::get_user(&_auth, c);
+                match user {
+                    Ok(user) => UserRespository::save_background(c, user.id, url)
+                        .map(|user| json!(user))
+                        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()}))),
+                    Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload to S3"})))
+                }
             })
             .await
         },
         Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload to S3"}))),
     }
 }
+
+#[post("/upload/post", data = "<data>")]
+async fn upload_post(db: DbConn, _auth: BearerToken, data: Form<PostUploadForm<'_>>) -> Result<Value, Custom<Value>> {
+    let res = PostResponsitory::create_post(db, _auth, data).await;
+    match res {
+        Ok(post) => Ok(json!(post)),
+        Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload post"})))
+    }
+}
+
+#[get("/post/<id>")]
+async fn post_from_id(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = PostResponsitory::get_post_from_id(c, id);
+        res
+        .map(|post| json!(post))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
     
+}  
 
 #[catch(404)]
 fn not_found() -> Value {
@@ -150,7 +163,9 @@ fn rocket() -> _ {
         authorize,
         user_from_id,
         upload_avatar,
-        upload_background
+        upload_background,
+        upload_post,
+        post_from_id
     ])
     .register("/", catchers![
         not_found,

@@ -1,5 +1,6 @@
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use super::schema::users;
+use super::schema::{users, posts};
 
 #[derive(serde::Serialize, Queryable)]
 pub struct User {
@@ -38,28 +39,41 @@ pub struct Login {
 
 #[derive(serde::Serialize, Queryable)]
 pub struct SafeUser {
-    id: i32,
-    name: String,
-    about: Option<String>,
-    avatar: Option<String>,
-    background: Option<String>,
-    photo: Option<Vec<Option<String>>>,
-    postid: Option<Vec<Option<i32>>>,
-    followerid: Option<Vec<Option<i32>>>,
-    followingid: Option<Vec<Option<i32>>>
+    pub id: i32,
+    pub name: String,
+    pub about: Option<String>,
+    pub avatar: Option<String>,
+    pub background: Option<String>,
+    pub photo: Option<Vec<Option<String>>>,
+    pub postid: Option<Vec<Option<i32>>>,
+    pub followerid: Option<Vec<Option<i32>>>,
+    pub followingid: Option<Vec<Option<i32>>>
 }
 
-#[derive(serde::Serialize, Queryable)]
+#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
+#[diesel(table_name = posts)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Post {
     pub id: i32,
-    pub user_id: Option<i32>,
+    pub userid: Option<i32>,
     pub name: Option<String>,
     pub avatar_user: Option<String>,
     pub content: Option<String>,
-    pub post_date: Option<chrono::NaiveDateTime>,
-    pub interact_date: Option<chrono::NaiveDateTime>,
-    pub image: Option<String>,
-    pub like_id: Option<Vec<Option<i32>>>,
-    pub comment_id: Option<Vec<Option<i32>>>,
-    pub share_id: Option<Vec<Option<i32>>>,
+    pub post_date: Option<DateTime<Utc>>,
+    pub interact_date: Option<DateTime<Utc>>,
+    pub image: Option<Vec<Option<String>>>,
+    pub likeid: Option<Vec<Option<i32>>>,
+    pub commentid: Option<Vec<Option<i32>>>,
+    pub shareid: Option<Vec<Option<i32>>>,
+    pub secret: Option<bool>,
+}
+
+#[derive(serde::Deserialize, Insertable)]
+#[diesel(table_name = posts)]
+pub struct NewPost {
+    pub userid: Option<i32>,
+    pub name: Option<String>,
+    pub avatar_user: Option<String>,
+    pub content: Option<String>,
+    pub image: Option<Vec<Option<String>>>,
 }

@@ -2,12 +2,23 @@ use aws_config::Region;
 use aws_sdk_s3::{config::Credentials, Client};
 use aws_sdk_s3::primitives::ByteStream;
 use dotenv::dotenv;
+use rocket::fs::TempFile;
+use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 use std::env;
 
 pub struct AwsS3;
 
 impl AwsS3{
+
+    pub async fn handle_file_s3(file: &TempFile<'_>, extension: &str) -> Result<String, String>{
+        let mut bytes = vec![];
+        if let Ok(mut file) = file.open().await {
+            let _ = file.read_to_end(&mut bytes).await;
+        }
+        let res = AwsS3::upload_s3(bytes, extension).await;
+        res
+    }
     
     pub async fn upload_s3(bytes: Vec<u8>, content_type: &str) -> Result<String, String> {
         dotenv().ok();
@@ -25,7 +36,7 @@ impl AwsS3{
                 };
          
 
-        let file_name = format!("avatar-{}.{}", Uuid::new_v4(), file_extension);
+        let file_name = format!("image-{}.{}", Uuid::new_v4(), file_extension);
 
         let byte_stream = ByteStream::from(bytes);
 

@@ -1,4 +1,4 @@
-use diesel::{ ExpressionMethods, PgConnection, QueryResult, RunQueryDsl};
+use diesel::{ ExpressionMethods, PgConnection, RunQueryDsl};
 use diesel::QueryDsl;
 use rocket::request::{FromRequest, Request, Outcome};
 use rocket::http::Status;
@@ -56,7 +56,7 @@ impl BearerToken{
         } 
     }
 
-    pub fn get_user(&self, c: &mut PgConnection) -> QueryResult<SafeUser>{
+    pub fn get_user(&self, c: &mut PgConnection) -> Result<SafeUser, diesel::result::Error>{
         let safe_user = users::table.select((
                 users::id,
                 users::name,
@@ -68,8 +68,8 @@ impl BearerToken{
                 users::followerid,
                 users::followingid,
             )).filter(users::username.eq(self.username.clone()))
-            .first::<SafeUser>(c)?;
-        Ok(safe_user)
+            .first::<SafeUser>(c);
+        safe_user
     }  
     
 }
