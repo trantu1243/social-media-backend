@@ -77,3 +77,8 @@ pub struct NewPost {
     pub content: Option<String>,
     pub image: Option<Vec<Option<String>>>,
 }
+
+#[derive(serde::Deserialize)]
+pub struct DataId {
+    pub id: i32
+}

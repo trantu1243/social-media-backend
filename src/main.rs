@@ -13,7 +13,7 @@ mod respositories {
 }
 mod aws_s3;
 
-use models::{Login, NewUser};
+use models::{DataId, Login, NewUser};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
 use respositories::{posts::PostUploadForm, users::UserRespository};
@@ -130,9 +130,17 @@ async fn post_from_id(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, 
         res
         .map(|post| json!(post))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
-    }).await
-    
-}  
+    }).await 
+}
+
+#[post("/post/like", data = "<data>")]
+async fn like_post(db: DbConn, _auth: BearerToken, data: Json<DataId>) -> Result<Value, Custom<Value>> {
+    let res = PostResponsitory::handle_like(db, _auth, data.id).await;
+    match res {
+        Ok(res) => Ok(json!(res)),
+        Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to like"})))
+    }
+} 
 
 #[catch(404)]
 fn not_found() -> Value {
@@ -165,7 +173,8 @@ fn rocket() -> _ {
         upload_avatar,
         upload_background,
         upload_post,
-        post_from_id
+        post_from_id,
+        like_post
     ])
     .register("/", catchers![
         not_found,
