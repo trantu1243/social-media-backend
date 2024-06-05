@@ -78,12 +78,29 @@ impl PostResponsitory {
                             } else {
                                 new_userids.push(Some(user.id));
                             };
-                            let result = diesel::update(posts::table.find(id)).set(posts::likeid.eq(new_userids))
+                            diesel::update(posts::table.find(id)).set(posts::likeid.eq(new_userids))
                             .execute(c)?;
-                            Ok(result.to_string())
+
+                            let user_likeids: Result<Option<Vec<Option<i32>>>, diesel::result::Error> = users::table.find(user.id).select(users::likeid).get_result(c);    
+                            match user_likeids {
+                                Ok(user_likeids) => {
+                                    let mut postids: Vec<Option<i32>> = user_likeids.unwrap_or(Vec::new());
+                                    if let Some(index) = postids.iter().position(|&x| x == Some(id)) {
+                                        postids.remove(index);
+                                    } else {
+                                        postids.push(Some(id));
+                                    };
+                                 
+                                    let result = diesel::update(users::table.find(user.id)).set(users::likeid.eq(postids))
+                                    .execute(c)?;
+                                    
+                                    Ok(result.to_string())
+                                },
+                                Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
+                            }
                         },
                         Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
-                    }           
+                    }
                 },
                 Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
             }

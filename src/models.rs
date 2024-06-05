@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use super::schema::{users, posts};
+use super::schema::{users, posts, comments};
 
 #[derive(serde::Serialize, Queryable)]
 pub struct User {
@@ -81,4 +81,36 @@ pub struct NewPost {
 #[derive(serde::Deserialize)]
 pub struct DataId {
     pub id: i32
+}
+
+#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
+#[diesel(table_name = comments)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Comment {
+    pub id: i32,
+    pub userid: Option<i32>,
+    pub postid: Option<i32>,
+    pub name: Option<String>,
+    pub avatar_user: Option<String>,
+    pub content: Option<String>,
+    pub likeid: Option<Vec<Option<i32>>>,
+    pub commentid: Option<Vec<Option<i32>>>,
+    pub comment_date: Option<DateTime<Utc>>,
+}
+
+
+#[derive(serde::Deserialize, Insertable)]
+#[diesel(table_name = comments)]
+pub struct NewComment {
+    pub userid: i32,
+    pub postid: i32,
+    pub name: String,
+    pub avatar_user: String,
+    pub content: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct CommentInput {
+    pub postid: i32,
+    pub content: String,
 }

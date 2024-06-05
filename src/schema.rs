@@ -11,7 +11,7 @@ diesel::table! {
         content -> Nullable<Text>,
         likeid -> Nullable<Array<Nullable<Int4>>>,
         commentid -> Nullable<Array<Nullable<Int4>>>,
-        comment_date -> Nullable<Timestamp>,
+        comment_date -> Nullable<Timestamptz>,
     }
 }
 

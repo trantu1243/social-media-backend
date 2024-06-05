@@ -10,13 +10,14 @@ mod authorization;
 mod respositories {
     pub mod users;
     pub mod posts;
+    pub mod comments;
 }
 mod aws_s3;
 
-use models::{DataId, Login, NewUser};
+use models::{CommentInput, DataId, Login, NewUser};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
-use respositories::{posts::PostUploadForm, users::UserRespository};
+use respositories::{posts::PostUploadForm, users::UserRespository, comments::CommentRespository};
 use respositories::posts::PostResponsitory;
 use rocket_cors::AllowedOrigins;
 use authorization::BearerToken;
@@ -142,6 +143,16 @@ async fn like_post(db: DbConn, _auth: BearerToken, data: Json<DataId>) -> Result
     }
 } 
 
+#[post("/upload/comment", data="<data>")]
+async fn upload_comment(db: DbConn, _auth: BearerToken, data: Json<CommentInput>) -> Result<Value, Custom<Value>> {
+    db.run(|c|{
+        let res = CommentRespository::create_comment(c, _auth, data.into_inner());
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
 #[catch(404)]
 fn not_found() -> Value {
     json!("Not found")
@@ -174,7 +185,8 @@ fn rocket() -> _ {
         upload_background,
         upload_post,
         post_from_id,
-        like_post
+        like_post,
+        upload_comment
     ])
     .register("/", catchers![
         not_found,
