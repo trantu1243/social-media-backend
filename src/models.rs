@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
+use crate::schema::friend_requests;
+
 use super::schema::{users, posts, comments};
 
 #[derive(serde::Serialize, Queryable)]
@@ -113,4 +115,21 @@ pub struct NewComment {
 pub struct CommentInput {
     pub postid: i32,
     pub content: String,
+}
+
+#[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
+#[diesel(table_name = friend_requests)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct FriendRequest {
+    pub id: i32,
+    pub userid1: Option<i32>,
+    pub userid2: Option<i32>,
+    pub confirm: Option<bool>
+}
+
+#[derive(serde::Deserialize, Insertable)]
+#[diesel(table_name = friend_requests)]
+pub struct NewFriendRequest {
+    pub userid1: Option<i32>,
+    pub userid2: Option<i32>,
 }

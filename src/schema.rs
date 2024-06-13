@@ -16,6 +16,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    friend_requests (id) {
+        id -> Int4,
+        userid1 -> Nullable<Int4>,
+        userid2 -> Nullable<Int4>,
+        confirm -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
     notifications (id) {
         id -> Int4,
         userid -> Nullable<Int4>,
@@ -80,6 +89,7 @@ diesel::joinable!(posts -> users (userid));
 
 diesel::allow_tables_to_appear_in_same_query!(
     comments,
+    friend_requests,
     notifications,
     posts,
     users,

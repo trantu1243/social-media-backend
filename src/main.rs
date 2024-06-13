@@ -11,13 +11,14 @@ mod respositories {
     pub mod users;
     pub mod posts;
     pub mod comments;
+    pub mod friend_request;
 }
 mod aws_s3;
 
 use models::{CommentInput, DataId, Login, NewUser};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
-use respositories::{posts::PostUploadForm, users::UserRespository, comments::CommentRespository};
+use respositories::{comments::CommentRespository, friend_request::{FriendRequestRespository, FriendRqInput}, posts::PostUploadForm, users::UserRespository};
 use respositories::posts::PostResponsitory;
 use rocket_cors::AllowedOrigins;
 use authorization::BearerToken;
@@ -153,6 +154,36 @@ async fn upload_comment(db: DbConn, _auth: BearerToken, data: Json<CommentInput>
     }).await
 }
 
+#[get("/comment/<id>")]
+async fn comments_from_post_id(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = CommentRespository::get_comments(c, _auth, id);
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
+#[post("/add-friend", data="<data>")]
+async fn add_friend(db: DbConn, _auth: BearerToken, data: Json<FriendRqInput>) -> Result<Value, Custom<Value>> {
+    db.run(|c|{
+        let res = FriendRequestRespository::create_request(c, _auth, data.into_inner());
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
+#[get("/check/add-friend/<id>")]
+async fn check_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = FriendRequestRespository::check_request(c, _auth, id);
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
 #[catch(404)]
 fn not_found() -> Value {
     json!("Not found")
@@ -186,7 +217,10 @@ fn rocket() -> _ {
         upload_post,
         post_from_id,
         like_post,
-        upload_comment
+        upload_comment,
+        comments_from_post_id,
+        add_friend,
+        check_add_friend
     ])
     .register("/", catchers![
         not_found,

@@ -43,4 +43,9 @@ impl CommentRespository {
             Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
         }
     }
+
+    pub fn get_comments(c: &mut PgConnection, _auth: BearerToken, id: i32)->QueryResult<Vec<Comment>>{
+        let comments = comments::table.filter(comments::postid.eq(id)).order(comments::comment_date).load::<Comment>(c);
+        comments
+    }
 }
