@@ -1,5 +1,7 @@
 use diesel::{ ExpressionMethods, PgConnection, QueryResult, RunQueryDsl};
 use diesel::QueryDsl;
+use social_media_backend::schema::posts;
+use crate::schema::comments;
 use crate::{models::{Login, NewUser, User, SafeUser}, schema::users};
 use scrypt::{ScryptParams, scrypt_simple, scrypt_check};
 use crate::jwt::JWTtoken;
@@ -110,7 +112,11 @@ impl UserRespository {
     }
 
     pub fn save_avatar(c: &mut PgConnection, id: i32, url: String) -> QueryResult<String> {     
-        let result = diesel::update(users::table.find(id)).set(users::avatar.eq(url))
+        let result = diesel::update(users::table.find(id)).set(users::avatar.eq(url.clone()))
+        .execute(c)?;
+        diesel::update(posts::table.filter(posts::userid.eq(id))).set(posts::avatar_user.eq(url.clone()))
+        .execute(c)?;
+        diesel::update(comments::table.filter(comments::userid.eq(id))).set(comments::avatar_user.eq(url))
         .execute(c)?;
         Ok(result.to_string())
     }

@@ -2,6 +2,7 @@ use crate::diesel::RunQueryDsl;
 use crate::diesel::SelectableHelper;
 use crate::models::FriendRequest;
 use crate::models::NewFriendRequest;
+use crate::schema::users;
 use diesel::BoolExpressionMethods;
 use diesel::ExpressionMethods;
 use diesel::PgConnection;
@@ -30,6 +31,35 @@ impl FriendRequestRespository {
             match id_rq {
                 Ok(_) => Err(diesel::result::Error::BrokenTransactionManager),
                 Err(_) => {
+                    let following_list: Option<Vec<Option<i32>>> = users::table.find(fr_rq.id1).select(users::followingid).get_result(c)?;
+                    let new_value1: Option<i32> = Some(fr_rq.id2); 
+                    let updated_following_list = match following_list {
+                        Some(mut vec) => {
+                            vec.push(new_value1);
+                            Some(vec)
+                        },
+                        None => {
+                            Some(vec![new_value1])
+                        },
+                    };
+                    diesel::update(users::table.find(fr_rq.id1)).set(users::followingid.eq(updated_following_list))
+                    .execute(c)?;
+
+
+                    let follower_list: Option<Vec<Option<i32>>> = users::table.find(fr_rq.id2).select(users::followerid).get_result(c)?;
+                    let new_value2: Option<i32> = Some(fr_rq.id1);
+                    let updated_follower_list = match follower_list {
+                        Some(mut vec) => {
+                            vec.push(new_value2);
+                            Some(vec)
+                        },
+                        None => {
+                            Some(vec![new_value2])
+                        },
+                    };
+                    diesel::update(users::table.find(fr_rq.id2)).set(users::followerid.eq(updated_follower_list))
+                    .execute(c)?;
+
                     let new_rq = NewFriendRequest { 
                         userid1: Some(fr_rq.id1), 
                         userid2: Some(fr_rq.id2) 
@@ -58,6 +88,61 @@ impl FriendRequestRespository {
             },
             Err(_)=>Err(diesel::result::Error::BrokenTransactionManager)
         }
+    }
+
+    pub fn confirm_request(c: &mut PgConnection, _auth: BearerToken, id: i32)->QueryResult<String>{
+        let user = _auth.get_user(c)?;
+        let id_rq = friend_requests::table.select(friend_requests::id)
+        .filter(
+            friend_requests::userid1.eq(Some(id)).and(friend_requests::userid2.eq(user.id))
+        )
+        .first::<i32>(c);
+        match id_rq {
+            Ok(_) => {
+                let following_list: Option<Vec<Option<i32>>> = users::table.find(user.id).select(users::followingid).get_result(c)?;
+                let new_value1: Option<i32> = Some(id); 
+                let updated_following_list = match following_list {
+                    Some(mut vec) => {
+                        vec.push(new_value1);
+                        Some(vec)
+                    },
+                    None => {
+                        Some(vec![new_value1])
+                    },
+                };
+                diesel::update(users::table.find(user.id)).set(users::followingid.eq(updated_following_list))
+                .execute(c)?;
+
+                let follower_list: Option<Vec<Option<i32>>> = users::table.find(id).select(users::followerid).get_result(c)?;
+                let new_value2: Option<i32> = Some(user.id);
+                let updated_follower_list = match follower_list {
+                    Some(mut vec) => {
+                        vec.push(new_value2);
+                        Some(vec)
+                    },
+                    None => {
+                        Some(vec![new_value2])
+                    },
+                };
+                diesel::update(users::table.find(id)).set(users::followerid.eq(updated_follower_list))
+                .execute(c)?;
+                
+                diesel::update(friend_requests::table.filter( friend_requests::userid1.eq(Some(id)).and(friend_requests::userid2.eq(user.id))))
+                .set(friend_requests::confirm.eq(Some(true)))
+                .execute(c)?;
+                Ok("Success".to_string())
+            },
+            Err(_) =>Err(diesel::result::Error::BrokenTransactionManager) 
+        }
+    }
+
+    pub fn delete_request(c: &mut PgConnection, _auth: BearerToken, id: i32)->QueryResult<String>{
+        let user = _auth.get_user(c)?;
+        diesel::delete(friend_requests::table.filter(
+            (friend_requests::userid1.eq(Some(user.id)).and(friend_requests::userid2.eq(Some(id))))
+                .or(friend_requests::userid1.eq(Some(id)).and(friend_requests::userid2.eq(Some(user.id))))
+        )).execute(c)?;
+        Ok("Success".to_string())
     }
 
 }

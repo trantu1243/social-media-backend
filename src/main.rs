@@ -76,7 +76,6 @@ struct FileUploadForm<'a> {
 
 #[post("/upload/avatar", data = "<data>")]
 async fn upload_avatar(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
-
     let res = AwsS3::handle_file_s3(&data.file, data.r#type).await;
     match res {
         Ok(url) => {
@@ -97,7 +96,6 @@ async fn upload_avatar(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm
 
 #[post("/upload/background", data = "<data>")]
 async fn upload_background(db: DbConn, _auth: BearerToken, data: Form<FileUploadForm<'_>>) -> Result<Value, Custom<Value>> {
-
     let res = AwsS3::handle_file_s3(&data.file, data.r#type).await;
     match res {
         Ok(url) => {
@@ -184,6 +182,26 @@ async fn check_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Val
     }).await 
 }
 
+#[post("/confirm-request/<id>")]
+async fn confirm_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = FriendRequestRespository::confirm_request(c, _auth, id);
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
+#[post("/delete-friend/<id>")]
+async fn delete_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = FriendRequestRespository::delete_request(c, _auth, id);
+        res
+        .map(|comment| json!(comment))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
 #[catch(404)]
 fn not_found() -> Value {
     json!("Not found")
@@ -220,7 +238,9 @@ fn rocket() -> _ {
         upload_comment,
         comments_from_post_id,
         add_friend,
-        check_add_friend
+        check_add_friend,
+        confirm_add_friend,
+        delete_friend
     ])
     .register("/", catchers![
         not_found,
