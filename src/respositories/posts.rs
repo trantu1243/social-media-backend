@@ -2,7 +2,7 @@ use diesel::{QueryResult, RunQueryDsl};
 use rocket::{form::Form, fs::TempFile};
 use diesel::prelude::*;
 
-use crate::models::Post;
+use crate::models::{NewSecretPost, Post};
 use crate::schema::users;
 use crate::{authorization::BearerToken, aws_s3::AwsS3, models::NewPost, schema::posts, DbConn};
 
@@ -60,6 +60,42 @@ impl PostResponsitory {
         }).await   
     }
 
+    pub async fn create_secret_post(db: DbConn, _auth: BearerToken, data: Form<PostUploadForm<'_>>,)->QueryResult<Post>{
+    
+        let mut urls: Vec<Option<String>> = Vec::new();
+        let text = data.text.to_string();
+        if data.r#type.len() > 0 {
+            let res = AwsS3::handle_file_s3(&data.file, data.r#type).await;
+            match res {
+                Ok(url) =>{    
+                    urls.push(Some(url));
+                },
+                Err(_) => {}
+            }
+        } 
+        
+        db.run(move |c|{
+            let user = BearerToken::get_user(&_auth, c);
+            match user {
+                Ok(user) => {
+                    let post = NewSecretPost {              
+                        userid: Some(user.id),
+                        name: Some("Anonymous user".to_string()),
+                        avatar_user: Some("https://trantu-secret.s3.ap-southeast-2.amazonaws.com/4123763.png".to_string()),
+                        content: Some(text),
+                        image: Some(urls),
+                        secret: Some(true)
+                    };
+                    diesel::insert_into(posts::table)
+                    .values(post)
+                    .returning(Post::as_returning())
+                    .get_result::<Post>(c)
+                },
+                Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
+            }         
+        }).await   
+    }
+
     pub fn get_post_from_id(c: &mut PgConnection, id: i32) -> QueryResult<Post> {
         posts::table.find(id).get_result::<Post>(c)
     }
@@ -105,5 +141,36 @@ impl PostResponsitory {
                 Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
             }
         }).await
+    }
+
+    pub fn get_posts(c: &mut PgConnection, _auth: BearerToken)->QueryResult<Vec<i32>>{
+        let user = BearerToken::get_user(&_auth, c);
+        match user {
+            Ok(user) =>{
+                let following_list = user.followingid.unwrap_or(Vec::new());
+                posts::table.select(posts::id)
+                    .filter(posts::userid.eq_any(following_list).and(posts::secret.eq(false)))
+                    .order_by(posts::interact_date.desc())
+                    .load::<i32>(c)
+            },
+            Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
+        }
+    }
+
+    pub fn get_secret_posts(c: &mut PgConnection, _auth: BearerToken)->QueryResult<Vec<i32>>{
+        let user = BearerToken::get_user(&_auth, c);
+        match user {
+            Ok(user) =>{
+                posts::table.select(posts::id)
+                    .filter(posts::userid.ne(user.id).and(posts::secret.eq(true)))
+                    .order_by(posts::interact_date.desc())
+                    .load::<i32>(c)
+            },
+            Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
+        }
+    }
+
+    pub fn edit_posts(c: &mut PgConnection, _auth: BearerToken){
+        
     }
 }

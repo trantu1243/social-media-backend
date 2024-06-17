@@ -15,7 +15,7 @@ mod respositories {
 }
 mod aws_s3;
 
-use models::{CommentInput, DataId, Login, NewUser};
+use models::{CommentInput, DataId, Login, NewUser, SearchName};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
 use respositories::{comments::CommentRespository, friend_request::{FriendRequestRespository, FriendRqInput}, posts::PostUploadForm, users::UserRespository};
@@ -32,8 +32,8 @@ async fn sign_in(db: DbConn, user: Json<Login>) -> Result<Value, Custom<Value>> 
     db.run(|c|{
         let result = UserRespository::handle_login(c, user.into_inner());
         result
-        .map(|user| json!(user))
-        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+        .map(|user| json!({"status": "success", "user": user}))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"status": "failed", "error": e.to_string()})))
     }).await
 }
 
@@ -123,6 +123,15 @@ async fn upload_post(db: DbConn, _auth: BearerToken, data: Form<PostUploadForm<'
     }
 }
 
+#[post("/upload/secret", data = "<data>")]
+async fn upload_secret_post(db: DbConn, _auth: BearerToken, data: Form<PostUploadForm<'_>>) -> Result<Value, Custom<Value>> {
+    let res = PostResponsitory::create_secret_post(db, _auth, data).await;
+    match res {
+        Ok(post) => Ok(json!(post)),
+        Err(_) => Err(Custom(Status::InternalServerError, json!({"error": "Failed to upload post"})))
+    }
+}
+
 #[get("/post/<id>")]
 async fn post_from_id(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value, Custom<Value>> {
     db.run(move |c|{
@@ -147,7 +156,7 @@ async fn upload_comment(db: DbConn, _auth: BearerToken, data: Json<CommentInput>
     db.run(|c|{
         let res = CommentRespository::create_comment(c, _auth, data.into_inner());
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await
 }
@@ -157,7 +166,7 @@ async fn comments_from_post_id(db: DbConn, _auth: BearerToken, id: i32) -> Resul
     db.run(move |c|{
         let res = CommentRespository::get_comments(c, _auth, id);
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await 
 }
@@ -167,7 +176,7 @@ async fn add_friend(db: DbConn, _auth: BearerToken, data: Json<FriendRqInput>) -
     db.run(|c|{
         let res = FriendRequestRespository::create_request(c, _auth, data.into_inner());
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await
 }
@@ -177,7 +186,7 @@ async fn check_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Val
     db.run(move |c|{
         let res = FriendRequestRespository::check_request(c, _auth, id);
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await 
 }
@@ -187,7 +196,7 @@ async fn confirm_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<V
     db.run(move |c|{
         let res = FriendRequestRespository::confirm_request(c, _auth, id);
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await 
 }
@@ -197,9 +206,39 @@ async fn delete_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Value,
     db.run(move |c|{
         let res = FriendRequestRespository::delete_request(c, _auth, id);
         res
-        .map(|comment| json!(comment))
+        .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await 
+}
+
+#[get("/posts/following")]
+async fn get_following_post(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = PostResponsitory::get_posts(c, _auth);
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
+#[get("/posts/secret")]
+async fn get_secret_post(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = PostResponsitory::get_secret_posts(c, _auth);
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
+#[post("/search/user", format = "json", data="<search>")]
+async fn search_user_from_name(db: DbConn, _auth: BearerToken, search: Json<SearchName>) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = UserRespository::search_from_name(c, search.search_name.clone());
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
 }
 
 #[catch(404)]
@@ -240,7 +279,11 @@ fn rocket() -> _ {
         add_friend,
         check_add_friend,
         confirm_add_friend,
-        delete_friend
+        delete_friend,
+        get_following_post,
+        upload_secret_post,
+        get_secret_post,
+        search_user_from_name
     ])
     .register("/", catchers![
         not_found,

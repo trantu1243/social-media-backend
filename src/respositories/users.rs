@@ -1,6 +1,7 @@
-use diesel::{ ExpressionMethods, PgConnection, QueryResult, RunQueryDsl};
+use diesel::{ ExpressionMethods, PgConnection, QueryResult, RunQueryDsl, TextExpressionMethods};
 use diesel::QueryDsl;
 use social_media_backend::schema::posts;
+use crate::models::SearchUser;
 use crate::schema::comments;
 use crate::{models::{Login, NewUser, User, SafeUser}, schema::users};
 use scrypt::{ScryptParams, scrypt_simple, scrypt_check};
@@ -125,5 +126,18 @@ impl UserRespository {
         let result = diesel::update(users::table.find(id)).set(users::background.eq(url))
         .execute(c)?;
         Ok(result.to_string())
+    }
+
+    pub fn search_from_name(c: &mut PgConnection, search_name: String) -> QueryResult<Vec<SearchUser>> {
+        users::table.select((
+            users::id,
+            users::name,
+            users::about,
+            users::avatar,
+            users::followerid
+        ))
+        .filter(users::name.like(format!("%{}%", search_name)))
+        .limit(5)
+        .load::<SearchUser>(c)
     }
 }

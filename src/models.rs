@@ -52,6 +52,20 @@ pub struct SafeUser {
     pub followingid: Option<Vec<Option<i32>>>
 }
 
+#[derive(serde::Serialize, Queryable)]
+pub struct SearchUser {
+    pub id: i32,
+    pub name: String,
+    pub about: Option<String>,
+    pub avatar: Option<String>,
+    pub followerid: Option<Vec<Option<i32>>>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct SearchName {
+    pub search_name: String,
+}
+
 #[derive(Queryable, Selectable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = posts)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -78,6 +92,17 @@ pub struct NewPost {
     pub avatar_user: Option<String>,
     pub content: Option<String>,
     pub image: Option<Vec<Option<String>>>,
+}
+
+#[derive(serde::Deserialize, Insertable)]
+#[diesel(table_name = posts)]
+pub struct NewSecretPost {
+    pub userid: Option<i32>,
+    pub name: Option<String>,
+    pub avatar_user: Option<String>,
+    pub content: Option<String>,
+    pub image: Option<Vec<Option<String>>>,
+    pub secret: Option<bool>,
 }
 
 #[derive(serde::Deserialize)]
