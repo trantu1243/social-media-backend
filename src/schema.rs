@@ -34,7 +34,7 @@ diesel::table! {
         content -> Nullable<Text>,
         #[max_length = 255]
         avatar_image_url -> Nullable<Varchar>,
-        notification_date -> Nullable<Timestamp>,
+        notification_date -> Nullable<Timestamptz>,
     }
 }
 

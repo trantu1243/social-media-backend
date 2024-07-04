@@ -1,6 +1,7 @@
 use diesel::{ ExpressionMethods, PgConnection, QueryResult, RunQueryDsl, TextExpressionMethods};
 use diesel::QueryDsl;
 use social_media_backend::schema::posts;
+use crate::authorization::BearerToken;
 use crate::models::SearchUser;
 use crate::schema::comments;
 use crate::{models::{Login, NewUser, User, SafeUser}, schema::users};
@@ -11,6 +12,19 @@ use crate::jwt::JWTtoken;
 pub struct LoginRes {
     user: SafeUser,
     token: String
+}
+
+#[derive(serde::Deserialize)]
+pub struct InfoUser {
+    pub name: String,
+    pub about: String
+}
+
+#[derive(serde::Deserialize)]
+pub struct PasswordInput {
+    pub password: String,
+    pub new_password: String,
+    pub confirm_password: String
 }
 
 pub struct UserRespository;
@@ -139,5 +153,35 @@ impl UserRespository {
         .filter(users::name.like(format!("%{}%", search_name)))
         .limit(5)
         .load::<SearchUser>(c)
+    }
+
+    pub fn update_user_info(c: &mut PgConnection, _auth: BearerToken, info_user: InfoUser) -> QueryResult<String> {
+        let user = BearerToken::get_user(&_auth, c)?;
+        let result = diesel::update(users::table.find(user.id)).set((
+            users::name.eq(info_user.name),
+            users::about.eq(info_user.about)
+        )).execute(c)?;
+        Ok(result.to_string())
+    }
+
+    pub fn change_password(c: &mut PgConnection, _auth: BearerToken, password_input: PasswordInput) -> QueryResult<String> {
+        let password = password_input.password.clone();
+        let user = BearerToken::get_user(&_auth, c)?;
+        let origin_password = users::table.select(users::password).find(user.id).first::<String>(c)?;
+        match scrypt_check(&password, &origin_password) {
+            Ok(_) => {
+                if password_input.new_password == password_input.confirm_password {
+                    let params = ScryptParams::new(8, 4, 1).unwrap();
+                    let hasded_password = scrypt_simple(&password_input.new_password, &params).unwrap();
+                    let result = diesel::update(users::table.find(user.id)).set(
+                        users::password.eq(hasded_password)
+                    ).execute(c)?;
+                    Ok(result.to_string())
+                } else {
+                    Err(diesel::result::Error::BrokenTransactionManager)
+                }
+            },
+            Err(_) => Err(diesel::result::Error::BrokenTransactionManager)
+        }
     }
 }

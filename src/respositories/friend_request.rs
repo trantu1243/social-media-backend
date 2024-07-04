@@ -2,6 +2,7 @@ use crate::diesel::RunQueryDsl;
 use crate::diesel::SelectableHelper;
 use crate::models::FriendRequest;
 use crate::models::NewFriendRequest;
+use crate::models::SearchUser;
 use crate::schema::users;
 use diesel::BoolExpressionMethods;
 use diesel::ExpressionMethods;
@@ -143,6 +144,68 @@ impl FriendRequestRespository {
                 .or(friend_requests::userid1.eq(Some(id)).and(friend_requests::userid2.eq(Some(user.id))))
         )).execute(c)?;
         Ok("Success".to_string())
+    }
+
+    pub fn get_friend_request(c: &mut PgConnection, _auth: BearerToken)->QueryResult<Vec<SearchUser>>{
+        let user = _auth.get_user(c)?;
+        let requests: Result<Vec<FriendRequest>, _> = friend_requests::table.filter(
+            (friend_requests::userid2.eq(user.id)).and(friend_requests::confirm.eq(false))
+        ).load::<FriendRequest>(c);
+        let mut list: Vec<SearchUser> = Vec::new();
+        match requests {
+            Ok(requests) => {
+                for request in requests {
+                    let friend: SearchUser = users::table.select((
+                        users::id,
+                        users::name,
+                        users::about,
+                        users::avatar,
+                        users::followerid
+                    )).find(request.userid1.unwrap_or(0))
+                    .first::<SearchUser>(c)?;
+                    list.push(friend);
+                }
+                Ok(list)
+            },
+            Err(_)=>Err(diesel::result::Error::BrokenTransactionManager) 
+        }
+    }
+
+    pub fn get_friends_of_user(c: &mut PgConnection, auth: BearerToken)->QueryResult<Vec<SearchUser>>{
+        let user = auth.get_user(c)?;
+        let requests: Result<Vec<FriendRequest>, _> = friend_requests::table.filter(
+            ((friend_requests::userid1.eq(user.id)).or(friend_requests::userid2.eq(user.id))).and(friend_requests::confirm.eq(true))
+        ).load::<FriendRequest>(c);
+        let mut list: Vec<SearchUser> = Vec::new();
+        match requests {
+            Ok(requests)=>{
+                for request in requests {
+                    if request.userid1 == Some(user.id) {
+                        let friend: SearchUser = users::table.select((
+                            users::id,
+                            users::name,
+                            users::about,
+                            users::avatar,
+                            users::followerid
+                        )).find(request.userid2.unwrap_or(0))
+                        .first::<SearchUser>(c)?;
+                        list.push(friend);
+                    } else {
+                        let friend: SearchUser = users::table.select((
+                            users::id,
+                            users::name,
+                            users::about,
+                            users::avatar,
+                            users::followerid
+                        )).find(request.userid1.unwrap_or(0))
+                        .first::<SearchUser>(c)?;
+                        list.push(friend);
+                    }
+                }
+                Ok(list)
+            },
+            Err(_) =>Err(diesel::result::Error::BrokenTransactionManager) 
+        }
     }
 
 }

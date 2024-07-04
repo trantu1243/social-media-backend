@@ -12,13 +12,14 @@ mod respositories {
     pub mod posts;
     pub mod comments;
     pub mod friend_request;
+    pub mod notifications;
 }
 mod aws_s3;
 
 use models::{CommentInput, DataId, Login, NewUser, SearchName};
 use rocket::{form::Form, fs::TempFile, http::{Method, Status}, response::status::Custom, serde::json::{Json, Value}};
 use serde_json::json;
-use respositories::{comments::CommentRespository, friend_request::{FriendRequestRespository, FriendRqInput}, posts::PostUploadForm, users::UserRespository};
+use respositories::{comments::CommentRespository, friend_request::{FriendRequestRespository, FriendRqInput}, notifications::NotificationRespository, posts::PostUploadForm, users::{InfoUser, PasswordInput, UserRespository}};
 use respositories::posts::PostResponsitory;
 use rocket_cors::AllowedOrigins;
 use authorization::BearerToken;
@@ -173,7 +174,7 @@ async fn comments_from_post_id(db: DbConn, _auth: BearerToken, id: i32) -> Resul
 
 #[post("/add-friend", data="<data>")]
 async fn add_friend(db: DbConn, _auth: BearerToken, data: Json<FriendRqInput>) -> Result<Value, Custom<Value>> {
-    db.run(|c|{
+    db.run(|c: &mut diesel::PgConnection|{
         let res = FriendRequestRespository::create_request(c, _auth, data.into_inner());
         res
         .map(|res| json!(res))
@@ -189,6 +190,16 @@ async fn check_add_friend(db: DbConn, _auth: BearerToken, id: i32) -> Result<Val
         .map(|res| json!(res))
         .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
     }).await 
+}
+
+#[get("/friend-request")]
+async fn friend_request(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(|c: &mut diesel::PgConnection|{
+        let res = FriendRequestRespository::get_friend_request(c, _auth);
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
 }
 
 #[post("/confirm-request/<id>")]
@@ -241,6 +252,47 @@ async fn search_user_from_name(db: DbConn, _auth: BearerToken, search: Json<Sear
     }).await
 }
 
+#[get("/friends")]
+async fn get_friends(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = FriendRequestRespository::get_friends_of_user(c, _auth);
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await 
+}
+
+#[post("/update/user-info", format = "json", data="<info_user>")]
+async fn update_user(db: DbConn, _auth: BearerToken, info_user: Json<InfoUser>) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = UserRespository::update_user_info(c, _auth, info_user.into_inner());
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
+#[post("/update/change-password", format = "json", data="<password_input>")]
+async fn handle_change_password(db: DbConn, _auth: BearerToken, password_input: Json<PasswordInput>) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = UserRespository::change_password(c, _auth, password_input.into_inner());
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
+#[get("/notifications")]
+async fn get_notifications(db: DbConn, _auth: BearerToken) -> Result<Value, Custom<Value>> {
+    db.run(move |c|{
+        let res = NotificationRespository::get_notifications(c, _auth);
+        res
+        .map(|res| json!(res))
+        .map_err(|e| Custom(Status::InternalServerError, json!({"error": e.to_string()})))
+    }).await
+}
+
+
 #[catch(404)]
 fn not_found() -> Value {
     json!("Not found")
@@ -283,7 +335,12 @@ fn rocket() -> _ {
         get_following_post,
         upload_secret_post,
         get_secret_post,
-        search_user_from_name
+        search_user_from_name,
+        friend_request,
+        get_friends,
+        update_user,
+        handle_change_password,
+        get_notifications
     ])
     .register("/", catchers![
         not_found,
